@@ -1,0 +1,143 @@
+expert_roles:
+  - name: Expert
+    description: >
+      You are a top expert in machine learning with a deep understanding of advanced AI methods
+  - name: Dr. MaGoo
+    description: >
+      You are an AI innovator with a serendipitous approach, surprising peers with unorthodox model enhancements
+  - name: Innovative Scientist
+    description: >
+      You are a globally famous AI researcher known for creative and unconventional techniques
+
+        
+Premise: >
+  {expert_roles}
+  Your task is to improve the training and validation accuracy of a contrastive learning neural network model by modifying its code.
+  # Neural Network Architecture
+  The network consists of an encoder network that transforms insurance policies into fixed-dimensional vector embeddings.
+  The encoder takes various policies as input:
+  1. the training policy
+  2. a positive policy (policy with the same label as the training policy)
+  3. n negative policies (policies with opposite label from the training policy)
+  # Training process
+  The framework uses contrastive learning with the following components:
+  1. Cosine Similarity Calculation: The system computes cosine similarity between the training policy embedding and all other embeddings (both similar and dissimilar)
+  2. Softmax Normalization: The similarities are passed through a softmax function to create a probability distribution
+  3. Cross-Entropy Loss: The final loss encourages:
+  - High similarity (0.95) between the training policy and similar policies (label = 1)
+  - Low similarity (0.02, 0.03) between the training policy and dissimilar policies (label = 0)
+  # Use context
+  This architecture is employed for Policy retrieval systems where you want to find policies similar to a query policy. 
+
+
+Constraints:
+  - name: Crossover
+    template : >
+      - You MUST maintain the existing init signature. Other blocks depend on this interface.
+      - You MUST DELIMIT ALL THE CODE WITHIN ####: 
+        example: 
+        ####
+        code here
+        ####
+      - You MUST limit imports to: `import torch`, `import torch.nn as nn`, `import torch.nn.functional as F`, `from typing import List, Optional, Dict`, `import math`
+      - You CAN:
+        - Add parameters WITH DEFAULT values
+        - Modify internal implementation
+        - Change forward() method
+      - You CANNOT:
+        - Add required parameters (without defaults)
+        - Remove existing parameters
+        - Change parameter order
+        - use invalid characters like '“' (U+201C)
+
+  - name: Plain_Mutation
+    template : >
+      - You MUST maintain the existing init signature. Other blocks depend on this interface.
+      - You MUST DELIMIT ALL THE CODE WITHIN ####: 
+        example: 
+        ####
+        code here
+        ####
+      - You MUST limit imports to: `import torch`, `import torch.nn as nn`, `import torch.nn.functional as F`, `from typing import List, Optional, Dict`
+      - You CAN:
+        - Add parameters WITH DEFAULT values
+        - Modify internal implementation
+        - Change forward() method
+      - You CANNOT:
+        - Add required parameters (without defaults)
+        - Remove existing parameters
+        - Change parameter order
+        - use invalid characters like '“' (U+201C)
+
+  - name: EoT
+    template : >
+      - You MUST maintain the existing init signature. Other blocks depend on this interface.
+      - You MUST DELIMIT ALL THE CODE WITHIN ####: 
+        example: 
+        ####
+        code here
+        ####
+      - You MUST limit imports to: `import torch`, `import torch.nn as nn`, `import torch.nn.functional as F`, `from typing import List, Optional, Dict`
+      - You CAN:
+        - Add parameters WITH DEFAULT values
+        - Modify internal implementation
+        - Change forward() method
+      - You CANNOT:
+        - Add required parameters (without defaults)
+        - Remove existing parameters
+        - Change parameter order
+        - use invalid characters like '“' (U+201C)
+
+
+Crossover: >
+  I will provide you with two different neural network code blocks (Python classes).
+  Each block implements the SAME functional role in a larger model (e.g., an encoder). 
+  Combine the two blocks into a new block that merges their best qualities.  
+  Constraints: 
+  {constraints}
+
+  Here are the two parent blocks:
+  {p1_block}
+
+  {p2_block}
+
+  Please output ONLY the new merged Python class definition.
+
+
+Initial mutation: >
+  I will give you a PyTorch class that defines a neural network. 
+  Your task is to create a mutated version of this class for exploration in an evolutionary algorithm. 
+
+  Constraints:
+  {constraints}
+
+  Here is the orginal class:
+  ```python
+  {original_class}
+  ```
+  Please output ONLY the modified class definition.
+
+
+EoT_mutation: >
+  Q1: Let's explain step by step why thus code segment modification enhanced performance.
+
+  Example of initial code:
+  ```python
+  {initial_code}
+  ```
+  Example of modified code: 
+  ```python
+  {modified_code}
+  ```
+
+  Q2: With the insights from Q1 in mind, lets apply the same principles in a concise manner to 
+  update the code snippet below
+
+  Code snipped to be augmented:
+  ```python
+  {code_to_augment}
+  ```
+  A1: Let us thunk step by step
+  
+  Constraints: 
+  {constraints}
