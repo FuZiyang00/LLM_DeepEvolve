@@ -3,13 +3,11 @@ from urllib import response
 from GA.individuals import Individual
 from typing import List
 import yaml
-from openai import AsyncOpenAI 
 import asyncio
 import random
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import os
-from dotenv import load_dotenv
 import re
 
 # ============================================================================
@@ -28,8 +26,7 @@ class GeneticAlgorithm:
         self.generations = generations
         with open(yaml_file, 'r') as file:
             self.prompts = yaml.safe_load(file)
-
-        load_dotenv()   
+  
         api_key = os.getenv("OPENAI_API_KEY") 
         self.openai = AsyncOpenAI(api_key=api_key)
         self.seed_individual = None
