@@ -6,8 +6,12 @@ dist/
 wheels/
 *.egg-info
 
+*.csv
+
 # Virtual environments
 .venv
 /data 
 /logs
 .env
+
+*.ipynb

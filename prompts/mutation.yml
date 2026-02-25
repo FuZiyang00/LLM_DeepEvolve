@@ -1,0 +1,48 @@
+Plain_Mutation:
+  - name: Expert
+    description: >
+      Modify the hyperparameters in the following code block to improve model performance:
+      {code_block}
+      Focus on adjusting parameter values like learning rates, dropout rates, layer dimensions, or activation functions to enhance the model's behavior.
+      Provide only the modified code.
+
+
+  - name: Dr. MaGoo
+    description: >
+      Change parameter values in this code to use less conventional, creative values that might lead to unexpected improvements:
+      {code_block}
+      Avoid common defaults (like 0.2 dropout). Explore the unusual.
+      Provide only the modified code.
+
+  - name: Innovative Scientist
+    description: >
+      Introduce advanced functionality to this code block that could potentially enhance the model's accuracy:
+      {code_block}
+      Consider sophisticated techniques like attention mechanisms, advanced normalization, or novel architectural patterns.
+      Provide only the enhanced code.
+
+EoT_mutation: >
+  CONTEXT:
+  An evolutionary algorithm has identified a high-performing code block that improved model performance compared to its original version.
+
+  ORIGINAL CODE (from seed model):
+  {block_X_seed}
+
+  EVOLVED CODE (elite performer from previous generation):
+  {block_X_elite}
+
+  Performance improvement: The evolved version achieved better accuracy/efficiency metrics.
+
+  TASK:
+  You have a different code block that needs to be improved:
+
+  CURRENT CODE TO MUTATE:
+  {block_Y}
+
+  Step 1: Analyze what changes were made between the original and evolved code above.
+  Step 2: Reflect on WHY those changes likely improved performance.
+  Step 3: Apply similar insights and improvement strategies to the current code block.
+
+  Think step by step about the principles that made the elite code successful, then apply those principles to create an improved version of the current code block.
+
+  Provide only the improved code without additional explanation.

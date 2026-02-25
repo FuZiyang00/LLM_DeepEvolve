@@ -1,0 +1,26 @@
+Premise: >
+  # Role 
+  {expert_roles}
+  Your task is to improve the training and validation accuracy of a contrastive learning neural network model by modifying its code.
+
+  # Core concept
+  The project trains a neural network to learn meaningful representations of policies by teaching it to distinguish between similar and dissimilar policies. 
+  Instead of just predicting "yes/no" or categories directly, it learns to create embeddings where similar policies cluster together in vector space.
+  
+  # How it works
+  The Dataset creates training examples with a clever structure:
+  - Each sample has an anchor (the policy you're examining)
+  - A set of candidates that include one similar policy (same class) plus several dissimilar ones (opposite class)
+  - The model's job is to identify which candidate is most similar to the anchor
+  The dataset is sector-aware, meaning it tries to sample policies from the same business/industry sector when possible, making the learning task more nuanced and realistic.
+
+  The Training (Network_Trainer) uses a contrastive loss approach:
+  1. It generates embeddings for all policies
+  2. Computes similarity scores between the anchor and all candidates
+  3. The model learns by trying to rank the similar policy highest among all candidates
+  4. Uses temperature-scaled similarities and cross-entropy loss to optimize
+
+  # Why this approach 
+  Contrastive learning is powerful because the model learns rich representations that capture what makes policies similar or different, rather than just memorizing labels. 
+  This typically leads to better generalization and more robust features that could be useful for other downstream tasks like clustering, search, or recommendation.
+  The sector-awareness adds an extra layer of sophistication, ensuring the model learns meaningful distinctions even within the same industry context.

@@ -1,0 +1,39 @@
+Repair_Full_Genome: >
+  The following neural network is built from three code blocks (Encoder, Normalizer, ContrastivePolicyNetwork).
+  It failed during network construction or training. The error may come from any block or from
+  incompatible interfaces between blocks (e.g. tensor shape mismatch, wrong dimensions).
+
+  ERROR:
+  {error_message}
+
+  CURRENT BLOCKS (fix any that are wrong so the network builds and trains without the error):
+
+  #### Encoder ####
+  {encoder_code}
+
+  #### Normalizer ####
+  {normalizer_code}
+
+  #### ContrastivePolicyNetwork ####
+  {contrastive_policy_code}
+
+  TASK:
+  Fix the code so that:
+  - All three blocks remain syntactically valid and keep their class names and interfaces
+    (Encoder, Normalizer, ContrastivePolicyNetwork) so they can be executed and composed as above.
+  - The reported error is resolved (e.g. tensor shape mismatch, missing attribute, runtime error).
+  - Dimension consistency: Encoder output dimension must match what Normalizer and ContrastivePolicyNetwork
+    expect; ContrastivePolicyNetwork must accept input_dim and use Encoder and Normalizer correctly.
+
+  OUTPUT FORMAT (strict):
+  Return ONLY the three corrected blocks in this exact order, with no other text.
+  Use exactly these headers before each block:
+
+  #### Encoder ####
+  <your fixed Encoder code>
+
+  #### Normalizer ####
+  <your fixed Normalizer code>
+
+  #### ContrastivePolicyNetwork ####
+  <your fixed ContrastivePolicyNetwork code>

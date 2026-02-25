@@ -5,6 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "httpx[http2]>=0.28.1",
+    "matplotlib>=3.10.8",
     "pandas>=2.3.3",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.12.0",

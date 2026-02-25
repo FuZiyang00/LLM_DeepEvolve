@@ -6,6 +6,9 @@ import torch
 from typing import List, Any
 import pandas as pd
 from tqdm import tqdm
+import logging
+from typing import Optional
+from pathlib import Path
 
 class Network_Trainer():
 
@@ -16,7 +19,8 @@ class Network_Trainer():
         
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = self._get_device()
+        # self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = model
         self.model.to(self.device)
 
@@ -28,6 +32,14 @@ class Network_Trainer():
                                                                mode='min',
                                                                patience=5, 
                                                                factor=0.5)
+        
+    def _get_device(self) -> torch.device:
+        if torch.cuda.is_available():
+            return torch.device("cuda")
+        if torch.backends.mps.is_available():
+            return torch.device("mps")  # Apple Silicon GPU
+        return torch.device("cpu")
+
 
     def forward(self, 
                 training_policy: torch.Tensor,
@@ -109,21 +121,14 @@ class Network_Trainer():
                  val_loader: DataLoader,
                  n_epochs: int = 50,
                  desc : str = "Training Progress",
-                 verbose: bool = False):
+                 verbose: bool = False, 
+                 save_path: Optional[Path] = None):
        
-        best_training_accuracy = 0.0
-        best_validation_accuracy = 0.0
 
         for epoch in tqdm(range(n_epochs), desc=desc):
             train_metrics = self.train_epoch(train_loader, training=True)
             val_metrics = self.train_epoch(val_loader, training=False)
             self.scheduler.step(val_metrics['loss'])
-
-            if train_metrics['accuracy'] > best_training_accuracy:
-                best_training_accuracy = train_metrics['accuracy']
-
-            if val_metrics['accuracy'] > best_validation_accuracy:
-                best_validation_accuracy = val_metrics['accuracy']
 
             if verbose:
                 if (epoch + 1) % 20 == 0:
@@ -132,5 +137,15 @@ class Network_Trainer():
                             f"Train Acc: {train_metrics['accuracy']:.4f} - "
                             f"Val Loss: {val_metrics['loss']:.4f}, "
                             f"Val Acc: {val_metrics['accuracy']:.4f}")
-
-        return best_training_accuracy, best_validation_accuracy
+        
+        # ADD: save weights if path provided
+        if save_path is not None:
+            save_path = Path(save_path)
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+            torch.save(self.model.state_dict(), save_path)
+                    
+        print(f"Training Acc: {train_metrics['accuracy']:.4f}")
+        print(f"Validation Acc: {val_metrics['accuracy']:.4f}")
+        print(f"Parameters: {sum(p.numel() for p in self.model.parameters())}")
+        
+        return val_metrics['accuracy'], sum(p.numel() for p in self.model.parameters())

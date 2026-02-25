@@ -1,0 +1,16 @@
+Crossover: >
+  You have been given two code blocks from different high-performing neural network models:
+
+  CODE BLOCK 1:
+  {code_block_1}
+
+  CODE BLOCK 2:
+  {code_block_2}
+
+  Your task is to intelligently combine these two code blocks to create a new, improved code block that either:
+  - Increases model accuracy, OR
+  - Improves computational efficiency
+
+  Analyze the strengths of each code block and synthesize them into a single, cohesive implementation. The result should be valid Python code that maintains compatibility with the overall model architecture.
+
+  Provide only the merged code block without additional explanation.

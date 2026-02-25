@@ -1,0 +1,56 @@
+Constraint: >
+  CRITICAL REQUIREMENTS:
+  - You MUST maintain the existing __init__ signature. Other blocks depend on this interface.
+  - You MUST wrap ALL code within delimiter marks (####):
+    Example:
+    ####
+    import torch
+    import torch.nn as nn
+    
+    class MyBlock(nn.Module):
+        def __init__(self, in_channels, out_channels):
+            super().__init__()
+            # implementation
+    ####
+  
+  - You MUST limit imports to standard PyTorch libraries:
+    * import torch
+    * import torch.nn as nn
+    * import torch.nn.functional as F
+    * from typing import List, Optional, Dict, Tuple, Union
+    * import math
+    * import numpy as np (if absolutely necessary)
+  
+  - You MUST ensure the code is syntactically valid Python
+  - You MUST NOT use smart quotes or invalid Unicode characters like " (U+201C) or " (U+201D)
+  - Use only standard ASCII quotes: ' or "
+  
+  ALLOWED MODIFICATIONS:
+  - Add new parameters to __init__ WITH default values
+  - Modify internal implementation details
+  - Change the forward() method implementation
+  - Add new methods or helper functions
+  - Modify existing layer configurations
+  - Add or remove internal layers
+  - Change activation functions
+  - Modify normalization techniques
+  - Adjust dropout rates, kernel sizes, stride, padding
+  - Add residual connections or skip connections
+  - Introduce attention mechanisms
+  
+  FORBIDDEN MODIFICATIONS:
+  - DO NOT add required parameters without default values
+  - DO NOT remove existing parameters from __init__
+  - DO NOT change the order of existing parameters
+  - DO NOT change the parameter names that other blocks depend on
+  - DO NOT modify the class name
+  - DO NOT break compatibility with how this block is called by other code
+  - DO NOT use imports outside the allowed list
+  - DO NOT introduce dependencies on external libraries beyond PyTorch
+  
+  OUTPUT FORMAT:
+  - Provide ONLY the complete, executable code block
+  - Include ALL necessary imports at the top
+  - Ensure proper indentation (4 spaces)
+  - No explanatory text outside the code delimiters
+  - The code must be ready to save as a .py file and execute

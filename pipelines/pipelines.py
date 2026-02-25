@@ -1,170 +1,165 @@
-import json
-import os
-import random
 import pandas as pd
-from GA.individuals import Individual
+from GA.individuals import Individual, Genome_block
 from GA.genetic_algorithm import GeneticAlgorithm
 from GA.SPEA import SPEA2
 from GA.NSGA import NSGA2
-from pipelines.utils import validate_code, create_contrastive_policy_seed, data_pipeline
+from pipelines.utils import (validate_and_add,
+                             create_contrastive_policy_seed, 
+                             data_pipeline, select_random_dominator, 
+                             setup_logger)
 import asyncio
-from typing import List
+from typing import Optional, List
+
+logger = setup_logger(__name__)
 
 
-async def create_single_child(GA: GeneticAlgorithm,
-                              parent_1: Individual,
-                              parent_2: Individual,
-                              seed_block_name: str,
-                              seed_block_code: str):
+# ============================================================================
+# 2. Function for running the whole evolution process
+# ============================================================================
     
-    crossover_code, p1_block_name = await GA.crossover(parent_1, parent_2)
-    validate_code(p1_block_name, crossover_code)
-    child = parent_1.clone()
-    child.gene_blocks[p1_block_name].mutate(new_code=crossover_code)
-    network = child.get_network()  # Validate the child's network
+async def run_evolution(data: pd.DataFrame,
+                  population_size: int = 10, 
+                  generations: int = 10, 
+                  elite_archive_size = 5, 
+                  initial_population: Optional[List[Individual]] = None):
 
-    if network is None:
-        print("Child network creation failed.")
-        child.is_valid = False
-        return child
-
-    improved_code = parent_1.gene_blocks[seed_block_name].code
-    to_be_improved_code = child.gene_blocks[seed_block_name].code
-    mutated_block_code = await GA.mutation(block_code = to_be_improved_code, 
-                                           og_code = seed_block_code, 
-                                           improved_code = improved_code)
-
-    validate_code(seed_block_name, mutated_block_code)
-    child.gene_blocks[seed_block_name].mutate(new_code=mutated_block_code)
-    network = child.get_network()   
-    if network is None:
-        print("Child network creation after mutation failed.")
-        child.is_valid = False
-    else:
-        print(f"New child created from parents {parent_1.index} and {parent_2.index}.")
-        child.is_valid = True
-        del network
-
-    return child
-
-
-async def create_batch_children(GA: GeneticAlgorithm,
-                                NSGA2_selector,
-                                seed_block_name: str,
-                                seed_block_code: str,
-                                num_children: int) -> List[Individual]:
-    
-    async def create_child():
-        parent_1 = NSGA2_selector.binary_tournament_selection()
-        parent_2 = NSGA2_selector.binary_tournament_selection()
-        child = await create_single_child(GA, parent_1, parent_2, seed_block_name, seed_block_code)
-        return child
-    
-    tasks = [create_child() for _ in range(num_children)]
-    results = await asyncio.gather(*tasks)
-    return results
-    
-
-
-def GA_pipeline(data: pd.DataFrame,
-                population_size=10,
-                generations=10,
-                elite_size=5,
-                yaml_file='prompts.yaml', 
-                population=None): 
-    
     training_dataloader, validation_dataloader, input_dim = data_pipeline(data)
+
+    # init seed
+    initial_seed: Individual = create_contrastive_policy_seed(input_dim)
+    initial_seed.index = 0
+    genetic_algorithm: GeneticAlgorithm = GeneticAlgorithm(input_dim=input_dim, 
+                                        population_size=population_size,)
     
-    initial_seed = create_contrastive_policy_seed(input_dim)
-    og_block_name, og_block_code = initial_seed.get_random_block()
+    if initial_population:
+        # Use provided list as first generation
+        genetic_algorithm.population = list(initial_population)
+        genetic_algorithm.assign_index()
+        logger.info(f"Using provided initial population of {len(genetic_algorithm.population)} individuals.")
 
-    if population is None:
-        GA = GeneticAlgorithm(input_dim=input_dim, 
-                              population_size=population_size,
-                              generations=generations,
-                              yaml_file=yaml_file)
+    else: 
+        # create initial population 
+        await genetic_algorithm.generate_initial_population(initial_seed)
+
+        # validating the children
+        to_be_del = []
+        for i in range(1, len(genetic_algorithm.population)):
+            validate_and_add(child = genetic_algorithm.population[i], 
+                            parent_1=initial_seed, 
+                            offsprings=to_be_del) 
         
-        GA.seed_individual = initial_seed  
+        del to_be_del
+
+        logger.info(f"Initial population of {len(genetic_algorithm.population)} individuals created.")
+        # evaluate initial population 
+        await genetic_algorithm.evaluate_population(training_dataloader, validation_dataloader)
+        genetic_algorithm.save_population(generation_index=0)
+
+    for gen in range(12, generations):
+
+        spea_2 = SPEA2(population=genetic_algorithm.population, 
+                       archive_size=elite_archive_size)
+        elite_archive = spea_2.environmental_selection()
+
+        offsprings = []
+        # crossover 
+        for _ in range(0, 2, 2):
+            nsga_2 = NSGA2(population=genetic_algorithm.population)
+
+            parent_1: Individual = nsga_2.binary_tournament_selection()
+            parent_2: Individual = nsga_2.binary_tournament_selection()
+
+            parent_3: Individual = nsga_2.binary_tournament_selection()
+            parent_4: Individual = nsga_2.binary_tournament_selection()
+
+            async def run_crossovers():
+                return await asyncio.gather(
+                    genetic_algorithm.crossover(parent1=parent_1, parent2=parent_2),
+                    genetic_algorithm.crossover(parent1=parent_3, parent2=parent_4),
+                )
+
+            child_1, child_2 = await run_crossovers()
+
+            for c in (child_1, child_2):
+                validate_and_add(child=c, parent_1= parent_1, offsprings=offsprings)
+
+        # mutation
+        mutated_offsprings = []
+        for i in range(0, 2, 2):
+            dominating_individual = select_random_dominator(initial_seed, elite_archive)
+
+            if dominating_individual:
+                logger.info("Using EoT Mutation")
+                dom_genome_name = GeneticAlgorithm.difference_with_seed(individual=dominating_individual, 
+                                                                        seed=initial_seed)
+                if dom_genome_name:
+                    dom_genome_code = dominating_individual.gene_blocks[dom_genome_name].code
+                
+                else: 
+                    dom_genome_name, dom_genome_code = dominating_individual.get_random_block()
+                
+                seed_genome_code: Genome_block = initial_seed.gene_blocks[dom_genome_name].code 
+                
+                child_1: Individual = offsprings[i]
+                child_1_genome_code: Genome_block = child_1.gene_blocks[dom_genome_name].code
+
+                child_2: Individual= offsprings[i+1]
+                child_2_genome_code: Genome_block = child_2.gene_blocks[dom_genome_name].code
+
+                async def run_eot_mutation():
+                    return await asyncio.gather(
+                        genetic_algorithm.mutation(block_code=child_1_genome_code, 
+                                                    og_code=seed_genome_code, 
+                                                    improved_code=dom_genome_code, 
+                                                    original_ind=child_1, 
+                                                    genome_name=dom_genome_name),
+
+                        genetic_algorithm.mutation(block_code=child_2_genome_code, 
+                                                    og_code=seed_genome_code, 
+                                                    improved_code=dom_genome_code, 
+                                                    original_ind=child_2, 
+                                                    genome_name=dom_genome_name),
+                    )
+                
+                mutated_child_1, mutated_child_2 = await run_eot_mutation()
+                
+                for c in (mutated_child_1, mutated_child_2):
+                    validate_and_add(child=c, parent_1= child_1, offsprings=mutated_offsprings)
+            
+            else: 
+                child_1: Individual = offsprings[i]
+                genome_name_1, genome_code_1 = child_1.get_random_block()
         
-        GA.generate_initial_population(initial_seed)
-    else:
-        GA = GeneticAlgorithm(input_dim=input_dim, 
-                              population_size=population_size,
-                              generations=generations,
-                              yaml_file=yaml_file)
-        GA.population = population
-        for i, ind in enumerate(GA.population):
-            ind.index = i  # assign a stable index to each individual
+                child_2: Individual= offsprings[i+1]
+                genome_name_2, genome_code_2= child_2.get_random_block()
 
-    print(f"Initial population of {len(GA.population)} individuals created.")
-    logs = {}
-    elites = []
-    log_dir = "logs"
+                async def run_mutation():
+                    return await asyncio.gather(
+                        genetic_algorithm.mutation(original_ind=child_1, 
+                                                    genome_name=genome_name_1, 
+                                                    block_code=genome_code_1, 
+                                                    eot_prob=0.1),
 
-    for gen in range(generations):
-        gen_logs = GA.evaluate_population(training_dataloader, validation_dataloader)
-        logs[f'Generation_{gen+1}'] = gen_logs
+                        genetic_algorithm.mutation(original_ind=child_2, 
+                                                    genome_name=genome_name_2, 
+                                                    block_code=genome_code_2, 
+                                                    eot_prob=0.1),)
 
-        log_path = os.path.join(log_dir, f"generation_{gen+1}.json")
-        with open(log_path, "w") as f:
-            json.dump(gen_logs, f, indent=4)
+                mutated_child_1, mutated_child_2 = await run_mutation()
+
+                for c in (mutated_child_1, mutated_child_2):
+                    validate_and_add(child=c, parent_1= child_1, offsprings=mutated_offsprings)
+
+        genetic_algorithm.population.extend(mutated_offsprings)      
+        genetic_algorithm.assign_index()
+        await genetic_algorithm.evaluate_population(training_dataloader=training_dataloader, 
+                                              validation_dataloader=validation_dataloader)
         
-        # SPEA2 selection to select elites
-        spea_selector = SPEA2(population=GA.population, archive_size=elite_size)
-        spea_selector.strengths()
-        spea_selector.raw_fitness()
-        spea_selector.density_numpy()
-        elites = [ind for ind in GA.population if ind.SPEA_raw_fitness == 0]
-
-        if len(elites) < elite_size:
-            remaining_slots = elite_size - len(elites)
-            dominated = [ind for ind in GA.population if ind.SPEA_raw_fitness > 0]
-            dominated.sort(key=lambda x: x.SPEA_raw_fitness)
-            elites.extend(dominated[:remaining_slots])
-        
-        elif len(elites) > elite_size:
-            elites = spea_selector.truncate_archive(elites)
-
-        selected_indices = [ind.index for ind in elites]
-        print(f"Generation {gen+1} evaluated. Elites selected: {len(elites)} \n {selected_indices}")
-
-        # Create offspring to refill population
-        NSGA2_selector = NSGA2(population=GA.population)
-        NSGA2_selector.non_dominated_sort()
-        NSGA2_selector.crowding_distance()
-
-        remaining_slots = population_size - len(elites)
-        max_attempts = 5
-        while remaining_slots > 0 and max_attempts > 0:
-
-            batch_children = asyncio.run(create_batch_children(GA,
-                                                               NSGA2_selector,
-                                                               og_block_name,
-                                                               og_block_code,
-                                                               num_children=remaining_slots))
-            max_attempts -= 1
-            for ind in batch_children:
-                if ind.is_valid:
-                    elites.append(ind)
-                    remaining_slots -= 1
-                    if len(elites) >= population_size:
-                        break
-            if max_attempts == 0 and remaining_slots > 0:
-                print(f"Could not create enough valid children after multiple attempts. Filling remaining slots with copies of elites.")
-                while remaining_slots > 0:
-                    random_elite = random.choice(elites)
-                    elite_copy = random_elite.clone()
-                    elite_copy.index = len(elites)
-                    elites.append(elite_copy)
-                    remaining_slots -= 1
-
-                    
-        print(f"Generation {gen+1} completed. Population refilled to {len(elites)} individuals.")
-
-        GA.clear_population()
-        GA.population = elites
-        for i, ind in enumerate(GA.population):
-            ind.index = i  # assign a stable index to each individual
-
-    return logs, GA.population
-        
+        # selection with SPEA2
+        if len(genetic_algorithm.population) > population_size:
+            new_population = genetic_algorithm.selection(elite_archive=elite_archive, 
+                                                         population_size=population_size, 
+                                                         total_population=genetic_algorithm.population)
+            
+            genetic_algorithm.set_new_population(new_population=new_population)
+            genetic_algorithm.save_population(generation_index=gen)

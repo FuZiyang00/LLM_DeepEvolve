@@ -1,0 +1,8 @@
+Errors: >
+  If errors are provided, use them as additional constraints/signals to repair the mutated code. Fix the issues and regenerate an improved version.
+  ERROR SOURCE (if any): 
+  {error_source}
+
+  ERRORS (if any):
+  {errors}
+  
