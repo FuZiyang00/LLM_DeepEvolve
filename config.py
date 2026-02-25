@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     # 2. Paths
     prompts_path: Path = Field(default=Path("prompts"))
     logs_path: Path = Field(default=Path("second_run"))
+    # config.py - add to Settings class (e.g. after logs_path)
+
+    data_seed: int = Field(default=42, description="Seed for train/val samples and DataLoader order")
 
     # 3. Security (API Keys)
     openrouter_api_key: SecretStr

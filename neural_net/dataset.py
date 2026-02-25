@@ -194,3 +194,26 @@ class ContrastivePolicyDataset(Dataset):
                 'candidates': candidates,  # List of lists of tensors
                 'labels': labels}
 
+
+class FixedSamplesDataset(Dataset):
+    """Dataset that returns precomputed contrastive samples. No randomness."""
+
+    def __init__(self, samples: List[Dict], input_dim: int):
+        self.samples = samples
+        self.input_dim = input_dim
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx) -> Dict[str, any]:
+        return self.samples[idx]
+
+
+def precompute_contrastive_samples(dataset: ContrastivePolicyDataset, seed: int) -> List[Dict]:
+    """Precompute one fixed set of contrastive samples using the given seed."""
+    random.seed(seed)
+    np.random.seed(seed)
+    samples = []
+    for idx in range(len(dataset)):
+        samples.append(dataset[idx])
+    return samples

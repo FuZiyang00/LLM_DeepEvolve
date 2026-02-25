@@ -1,6 +1,5 @@
 from GA.individuals import Individual, Genome_block
 import ast
-from neural_net.dataset import ContrastivePolicyDataset
 from torch.utils.data import DataLoader
 import logging
 import re
@@ -10,6 +9,10 @@ from typing import List, Optional
 from GA.SPEA import SPEA2
 import traceback
 import re
+from torch.utils.data import DataLoader
+from torch import Generator
+from neural_net.dataset import ContrastivePolicyDataset, FixedSamplesDataset, precompute_contrastive_samples
+from config import settings
 
 # ============================================================================
 # 1. Function to generate a seed Individual
@@ -137,37 +140,50 @@ def validate_and_add(child: Individual,
 # =============================================================================================
 
 
-def data_pipeline(df):
+def data_pipeline(df, seed: Optional[int] = None):
+    if seed is None:
+        seed = getattr(settings, "data_seed", 42)
     training_df = df[df["year"] < 2022].reset_index(drop=True)
 
     validation_df = training_df[training_df["year"] > 2020].reset_index(drop=True)
     training_df = training_df[training_df["year"] <= 2020].reset_index(drop=True)
-    
-    training_df.drop(columns=['year', 'is_company_italian'], inplace=True) 
+
+    training_df.drop(columns=['year', 'is_company_italian'], inplace=True)
     validation_df.drop(columns=['year', 'is_company_italian'], inplace=True)
     dummy_cols = ['Sector', "REGION_GROUP"]
     target = 'target'
 
-    training_dataset = ContrastivePolicyDataset(df=training_df, 
-                                                target_column=target,
-                                                dummy_cols=dummy_cols)
-    
-    validation_dataset = ContrastivePolicyDataset(df=validation_df, 
-                                                  target_column=target,
-                                                  dummy_cols=dummy_cols)
-    
-    training_dataloader = DataLoader(training_dataset, 
+    training_dataset_raw = ContrastivePolicyDataset(df=training_df,
+                                                    target_column=target,
+                                                    dummy_cols=dummy_cols)
+
+    validation_dataset_raw = ContrastivePolicyDataset(df=validation_df,
+                                                      target_column=target,
+                                                      dummy_cols=dummy_cols)
+
+    # Precompute fixed samples so every individual and generation sees the same data
+    training_samples = precompute_contrastive_samples(training_dataset_raw, seed)
+    validation_samples = precompute_contrastive_samples(validation_dataset_raw, seed)
+
+    training_dataset = FixedSamplesDataset(training_samples, training_dataset_raw.input_dim)
+    validation_dataset = FixedSamplesDataset(validation_samples, validation_dataset_raw.input_dim)
+
+    g = Generator().manual_seed(seed)
+    training_dataloader = DataLoader(training_dataset,
                                      batch_size=16,
-                                     shuffle=True, 
+                                     shuffle=True,
                                      drop_last=True,
+                                     generator=g,
                                      collate_fn=ContrastivePolicyDataset.collate_fn)
-    
-    validation_dataloader = DataLoader(validation_dataset, 
+
+    g_val = Generator().manual_seed(seed + 1)  # different seed so val order is fixed but not same as train
+    validation_dataloader = DataLoader(validation_dataset,
                                        batch_size=16,
                                        shuffle=True,
                                        drop_last=True,
+                                       generator=g_val,
                                        collate_fn=ContrastivePolicyDataset.collate_fn)
-    
+
     input_dim = training_dataset.input_dim
     return training_dataloader, validation_dataloader, input_dim
 
